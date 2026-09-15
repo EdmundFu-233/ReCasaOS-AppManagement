@@ -440,7 +440,8 @@ func (ds *dockerService) CreateContainer(m model.CustomizationPostData, id strin
 		}
 	}
 	hostConfingBind := []string{}
-	// volumes bind
+	// Volumes are host binds only for absolute sources; anything else is a
+	// daemon-managed named volume and must never be mkdir'd on the host.
 	volumes := []mount.Mount{}
 	for _, v := range m.Volumes {
 		path := v.Path
@@ -451,25 +452,17 @@ func (ds *dockerService) CreateContainer(m model.CustomizationPostData, id strin
 			}
 		}
 		path = strings.ReplaceAll(path, "$AppID", m.Label)
-		// reg1 := regexp.MustCompile(`([^<>/\\\|:""\*\?]+\.\w+$)`)
-		// result1 := reg1.FindAllStringSubmatch(path, -1)
-		// if len(result1) == 0 {
-		err = file.IsNotExistMkDir(path)
-		if err != nil {
-			logger.Error("Failed to create a folder", zap.Any("err", err))
-			continue
+		mountType, ensureDir := docker.ClassifyMount(path)
+		if ensureDir {
+			err = file.IsNotExistMkDir(path)
+			if err != nil {
+				logger.Error("Failed to create a folder", zap.Any("err", err))
+				continue
+			}
 		}
-		//}
-		//  else {
-		// 	err = file.IsNotExistCreateFile(path)
-		// 	if err != nil {
-		// 		ds.log.Error("mkdir error", err)
-		// 		continue
-		// 	}
-		// }
 
 		volumes = append(volumes, mount.Mount{
-			Type:   mount.TypeBind,
+			Type:   mountType,
 			Source: path,
 			Target: v.ContainerPath,
 		})

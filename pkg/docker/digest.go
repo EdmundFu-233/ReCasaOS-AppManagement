@@ -5,7 +5,6 @@ package docker
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/docker/distribution/manifest/ocischema"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -127,11 +127,19 @@ func GetManifest(ctx context.Context, imageName string) (interface{}, string, er
 		return nil, contentType, fmt.Errorf("not a manifest content: %w", err)
 	}
 
+	return parseManifestPayload(contentType, buf)
+}
+
+// parseManifestPayload decodes one registry manifest by its content type.
+// Unknown types fail closed: an unrecognized payload must never be treated
+// as a known manifest.
+func parseManifestPayload(contentType string, buf []byte) (interface{}, string, error) {
 	manifest, ok := map[string]interface{}{
-		schema1.MediaTypeSignedManifest:    schema1.SignedManifest{},
-		schema2.MediaTypeManifest:          schema2.Manifest{},
-		manifestlist.MediaTypeManifestList: manifestlist.ManifestList{},
-		v1.MediaTypeImageIndex:             manifestlist.ManifestList{},
+		schema1.MediaTypeSignedManifest:    &schema1.SignedManifest{},
+		schema2.MediaTypeManifest:          &schema2.Manifest{},
+		manifestlist.MediaTypeManifestList: &manifestlist.ManifestList{},
+		v1.MediaTypeImageIndex:             &manifestlist.ManifestList{},
+		v1.MediaTypeImageManifest:          &ocischema.Manifest{},
 	}[contentType]
 
 	if !ok {
@@ -182,7 +190,6 @@ func httpClient() *http.Client {
 		IdleConnTimeout:       90 * time.Second,
 		MaxIdleConns:          100,
 		Proxy:                 http.ProxyFromEnvironment,
-		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, // nolint:gosec
 		TLSHandshakeTimeout:   10 * time.Second,
 	}}
 }
@@ -193,4 +200,5 @@ func addDefaultHeaders(header *http.Header, token string) {
 	header.Add("Accept", manifestlist.MediaTypeManifestList)
 	// header.Add("Accept", schema1.MediaTypeManifest)
 	header.Add("Accept", v1.MediaTypeImageIndex)
+	header.Add("Accept", v1.MediaTypeImageManifest)
 }

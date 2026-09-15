@@ -395,6 +395,11 @@ func (a *ComposeApp) UpWithCheckRequire(ctx context.Context, service api.Service
 			}
 
 			path := volume.Source
+			if !filepath.IsAbs(path) {
+				// Named volume: the daemon owns it. Never create host
+				// directories for non-absolute sources.
+				continue
+			}
 			if err := file.IsNotExistMkDir(path); err != nil {
 				go PublishEventWrapper(ctx, common.EventTypeContainerStartError, map[string]string{
 					common.PropertyTypeMessage.Name: err.Error(),
@@ -515,6 +520,11 @@ func (a *ComposeApp) PullAndInstall(ctx context.Context) error {
 				}
 
 				path := volume.Source
+				if !filepath.IsAbs(path) {
+					// Named volume: the daemon owns it. Never create host
+					// directories for non-absolute sources.
+					continue
+				}
 				if err := file.IsNotExistMkDir(path); err != nil {
 					go PublishEventWrapper(ctx, common.EventTypeContainerCreateError, map[string]string{
 						common.PropertyTypeMessage.Name: err.Error(),
@@ -599,7 +609,11 @@ func (a *ComposeApp) Uninstall(ctx context.Context, deleteConfigFolder bool) err
 	if err := service.Down(ctx, a.Name, api.DownOptions{
 		RemoveOrphans: true,
 		Images:        "all",
-		Volumes:       true,
+		// Volumes stays false: uninstall must never delete user data.
+		// Named volumes are daemon-managed now that non-absolute sources
+		// are no longer forced into host binds. Data removal, if ever
+		// wanted, must be an explicit separate operator action.
+		Volumes: false,
 	}); err != nil {
 		go PublishEventWrapper(ctx, common.EventTypeImageRemoveError, map[string]string{
 			common.PropertyTypeMessage.Name: err.Error(),
