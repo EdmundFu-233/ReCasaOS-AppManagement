@@ -14,13 +14,13 @@ const ociManifestFixture = `{
 	"mediaType": "application/vnd.oci.image.manifest.v1+json",
 	"config": {
 		"mediaType": "application/vnd.oci.image.config.v1+json",
-		"digest": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc255c2b3e62e05f5c8ed6f619",
+		"digest": "sha256:ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12",
 		"size": 7023
 	},
 	"layers": [
 		{
 			"mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-			"digest": "sha256:8c0e5b8a5f8b1f6a1b0e1e5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4",
+			"digest": "sha256:ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12",
 			"size": 32654
 		}
 	]
@@ -40,6 +40,18 @@ func TestParseOCIManifest(t *testing.T) {
 	}
 	if len(manifest.Layers) != 1 {
 		t.Fatalf("layers = %d, want 1", len(manifest.Layers))
+	}
+	for _, digest := range append([]string{string(manifest.Config.Digest)}, manifest.Layers[0].Digest.String()) {
+		trimmed := strings.TrimPrefix(digest, "sha256:")
+		if len(trimmed) != 64 {
+			t.Fatalf("digest %q is not a full 256-bit hex value", digest)
+		}
+		for i := 0; i < len(trimmed); i++ {
+			character := trimmed[i]
+			if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
+				t.Fatalf("digest %q is not lowercase hex", digest)
+			}
+		}
 	}
 }
 

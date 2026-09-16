@@ -179,6 +179,9 @@ func tokenAndURL(imageName string) (string, string, error) {
 }
 
 func httpClient() *http.Client {
+	// Registry TLS is always verified. Registries with self-signed
+	// certificates stop working: install the CA in the system trust store
+	// instead of weakening this client. There is no opt-out by design.
 	return &http.Client{Transport: &http.Transport{
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
