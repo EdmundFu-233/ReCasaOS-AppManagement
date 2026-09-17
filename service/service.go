@@ -17,6 +17,7 @@ import (
 	"github.com/IceWhaleTech/CasaOS-AppManagement/codegen/message_bus"
 	"github.com/IceWhaleTech/CasaOS-AppManagement/common"
 	"github.com/IceWhaleTech/CasaOS-AppManagement/pkg/config"
+	"github.com/IceWhaleTech/CasaOS-AppManagement/pkg/gatewayclient"
 	"github.com/IceWhaleTech/CasaOS-Common/external"
 	"github.com/IceWhaleTech/CasaOS-Common/utils/logger"
 	jsoniter "github.com/json-iterator/go"
@@ -41,7 +42,7 @@ type Services interface {
 }
 
 func NewService(RuntimePath string) Services {
-	gatewayManagement, err := external.NewManagementService(RuntimePath)
+	gatewayManagement, err := gatewayclient.New(RuntimePath)
 	if err != nil && len(RuntimePath) > 0 {
 		panic(err)
 	}
